@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/neuro_colors.dart';
 import '../../../../core/theme/neuro_typography.dart';
 import 'widgets/patient_risk_card.dart';
+import '../data/ai_provider.dart';
 
 class DoctorDashboard extends ConsumerStatefulWidget {
   const DoctorDashboard({super.key});
@@ -14,21 +15,21 @@ class DoctorDashboard extends ConsumerStatefulWidget {
 class _DoctorDashboardState extends ConsumerState<DoctorDashboard> {
   @override
   Widget build(BuildContext context) {
+    final patientsAsync = ref.watch(patientsAIProvider);
+
     return Scaffold(
       appBar: AppBar(
         title: Text('Clinical Dashboard', style: NeuroTypography.textTheme.headlineLarge),
         actions: [
           IconButton(
             icon: const Icon(Icons.notifications_active, color: NeuroColors.emergency),
-            onPressed: () {
-              // Open Notifications
-            },
+            onPressed: () {},
           ),
         ],
       ),
       body: RefreshIndicator(
         onRefresh: () async {
-          // Refresh patients list
+          ref.invalidate(patientsAIProvider);
         },
         child: ListView(
           padding: const EdgeInsets.all(16),
@@ -43,6 +44,9 @@ class _DoctorDashboardState extends ConsumerState<DoctorDashboard> {
                   end: Alignment.bottomRight,
                 ),
                 borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(color: NeuroColors.primary.withOpacity(0.3), blurRadius: 15, offset: const Offset(0, 5)),
+                ],
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -57,7 +61,7 @@ class _DoctorDashboardState extends ConsumerState<DoctorDashboard> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Monitoring 24 active ESP32 Bluetooth sensors. 1 critical alert detected in the last hour.',
+                    'Monitoring 24 active ESP32 Bluetooth sensors. API connected.',
                     style: NeuroTypography.textTheme.bodyMedium?.copyWith(color: Colors.white70),
                   ),
                 ],
@@ -65,28 +69,30 @@ class _DoctorDashboardState extends ConsumerState<DoctorDashboard> {
             ),
             const SizedBox(height: 24),
             
-            // Section Title
-            Text('Active Patients', style: NeuroTypography.textTheme.titleLarge),
+            Text('Active Patients (Live AI Predictions)', style: NeuroTypography.textTheme.titleLarge),
             const SizedBox(height: 12),
 
-            // Patient List (Mock Data)
-            PatientRiskCard(
-              patientName: 'Ahmed Mahmoud',
-              id: 'PT-8943',
-              riskLevel: 'HIGH',
-              onTap: () {}, // Navigate to Patient Details / Reports
-            ),
-            PatientRiskCard(
-              patientName: 'Sarah Jenkins',
-              id: 'PT-1022',
-              riskLevel: 'MEDIUM',
-              onTap: () {},
-            ),
-            PatientRiskCard(
-              patientName: 'Ziad Tariq',
-              id: 'PT-9931',
-              riskLevel: 'LOW',
-              onTap: () {},
+            patientsAsync.when(
+              data: (patients) {
+                return Column(
+                  children: patients.map((p) {
+                    return PatientRiskCard(
+                      patientName: p['name'],
+                      id: p['id'],
+                      riskLevel: p['ai_analysis']['risk_level'] ?? 'UNKNOWN',
+                      onTap: () {},
+                    );
+                  }).toList(),
+                );
+              },
+              loading: () => const Padding(
+                padding: EdgeInsets.all(32.0),
+                child: Center(child: CircularProgressIndicator(color: NeuroColors.primary)),
+              ),
+              error: (err, stack) => Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Text('Error loading AI data: $err', style: const TextStyle(color: NeuroColors.emergency)),
+              ),
             ),
           ],
         ),
@@ -94,10 +100,11 @@ class _DoctorDashboardState extends ConsumerState<DoctorDashboard> {
       floatingActionButton: FloatingActionButton(
         backgroundColor: NeuroColors.primary,
         onPressed: () {
-          // Add new patient or connect new Bluetooth device
+          ref.invalidate(patientsAIProvider);
         },
-        child: const Icon(Icons.bluetooth_connected, color: Colors.white),
+        child: const Icon(Icons.refresh, color: Colors.white),
       ),
     );
   }
 }
+

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/neuro_colors.dart';
 import '../../core/theme/neuro_typography.dart';
+import '../../core/router/app_router.dart';
+import '../data/auth_repository.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -14,14 +16,45 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
 
-  void _handleLogin() {
-    // In real app, this calls the AuthRepository which calls the FastAPI endpoint.
-    // For now, we simulate the redirection logic requested in the Master Prompt.
+  bool _isLoading = false;
+
+  Future<void> _handleLogin() async {
     final email = _emailController.text.trim();
-    
-    // Simulate API Response mapping
-    // ref.read(authStateProvider.notifier).state = true;
-    // ref.read(userRoleProvider.notifier).state = 'ROLE';
+    final password = _passwordController.text.trim();
+
+    if (email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter email and password')),
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final authRepo = ref.read(authRepositoryProvider);
+      final result = await authRepo.login(email, password);
+
+      if (!mounted) return;
+
+      if (result['success']) {
+        ref.read(userRoleProvider.notifier).state = result['role'];
+        ref.read(authStateProvider.notifier).state = true;
+        // Router will automatically redirect based on authStateProvider
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(result['message'] ?? 'Login failed')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   @override
@@ -56,31 +89,72 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ),
                 const SizedBox(height: 48),
                 
-                // Form Area
-                TextFormField(
-                  controller: _emailController,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: const InputDecoration(
-                    labelText: 'Email Address',
-                    prefixIcon: Icon(Icons.email_outlined, color: NeuroColors.textSecondary),
+                // Form Area (Premium Card Look)
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: NeuroColors.surface.withOpacity(0.5),
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: NeuroColors.primary.withOpacity(0.2)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.2),
+                        blurRadius: 20,
+                        offset: const Offset(0, 10),
+                      ),
+                    ],
                   ),
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _passwordController,
-                  obscureText: true,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: const InputDecoration(
-                    labelText: 'Password',
-                    prefixIcon: Icon(Icons.lock_outline, color: NeuroColors.textSecondary),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      TextFormField(
+                        controller: _emailController,
+                        style: const TextStyle(color: Colors.white),
+                        decoration: InputDecoration(
+                          labelText: 'Email Address',
+                          prefixIcon: const Icon(Icons.email_outlined, color: NeuroColors.textSecondary),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                          filled: true,
+                          fillColor: NeuroColors.background.withOpacity(0.8),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _passwordController,
+                        obscureText: true,
+                        style: const TextStyle(color: Colors.white),
+                        decoration: InputDecoration(
+                          labelText: 'Password',
+                          prefixIcon: const Icon(Icons.lock_outline, color: NeuroColors.textSecondary),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                          filled: true,
+                          fillColor: NeuroColors.background.withOpacity(0.8),
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+                      
+                      // Login Button
+                      SizedBox(
+                        height: 54,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: NeuroColors.primary,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            elevation: 8,
+                            shadowColor: NeuroColors.primary.withOpacity(0.5),
+                          ),
+                          onPressed: _isLoading ? null : _handleLogin,
+                          child: _isLoading 
+                            ? const SizedBox(
+                                height: 24, 
+                                width: 24, 
+                                child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white)
+                              )
+                            : const Text('Sign In', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 1.2, color: Colors.white)),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-                const SizedBox(height: 32),
-                
-                // Login Button
-                ElevatedButton(
-                  onPressed: _handleLogin,
-                  child: const Text('Sign In', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 ),
                 
                 // Notice: No Role Selection dropdown as requested!
@@ -92,3 +166,4 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 }
+

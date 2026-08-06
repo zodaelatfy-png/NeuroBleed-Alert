@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+.env
+
+# Flutter/Dart
+.dart_tool/
+.packages
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+*.iml
+.idea/
+
+# Railway
+railway.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Misc
+NeuroBleed_Alert_Clean.zip

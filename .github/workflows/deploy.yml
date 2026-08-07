@@ -32,6 +32,9 @@ jobs:
       uses: subosito/flutter-action@v2
       with:
         channel: 'stable'
+    - name: Create Web Platform
+      working-directory: ./frontend
+      run: flutter create . --platforms web
     - name: Install dependencies
       working-directory: ./frontend
       run: flutter pub get
